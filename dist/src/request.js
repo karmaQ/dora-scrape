@@ -12,7 +12,6 @@ exports.default = (opts) => {
     opts.auth && req.auth(opts.auth.user, opts.auth.pwd);
     let buffer = [];
     req.on('request', (chunk) => {
-        console.log("------>>>----");
         buffer.push(chunk);
     });
     req.on('end', (response) => {

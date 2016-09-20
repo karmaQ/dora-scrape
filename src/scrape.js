@@ -1,6 +1,7 @@
+import { pick } from "./picker"
 import Typheous from "typheous"
 import request from "./request"
-import Picker from "./picker"
+
 import { isPlainObject,
          isFunction,
          defaultsDeep,
@@ -11,55 +12,40 @@ import { isPlainObject,
          isArray,
          toString,
          clone,
-         mapKeys
+         mapKeys,
+         uniq,
+         castArray
        } from "lodash"
+
+import {
+  iterateLinks
+} from "./utils"
+
 class Scrape {
   constructor(seedUri, iterators, defaultRecipe, opts) {
     this.crawledLinks = []
     this.keepedLinks = []
+    this.rules = {}
+    this.saves = {}    
     // 设置默认值
     if(defaultRecipe) {
       this.defaulRecipe = defaultRecipe
     } else if (isPlainObject(iterators)) {
       this.defaulRecipe = iterators
+      iterators = undefined
     }
-    // TODO 根据 iterators 生成 Links
-    this.links = [
-      "http://www.ruby-china.com"
-    ]
-    this.rules = {}
-    this.saves = {}
-    let _iterators = []
-    iterators = [[4,5,6,7],[1,2,3,4,5,6]]
-    for(let k in iterators) {
-      _iterators.push([toString(k), iterators[k]])
+
+    if(iterators) {
+      this.links = iterateLinks(seedUri, iterators)
+    } else {
+      this.links = castArray(seedUri)
     }
-    let links = this.makeLinks("http://www.h.com/?asd=${0}&sad=${1}",
-                               _iterators)
-    let picker = new Picker
-    this.picker = picker.pick.bind(picker)
+    console.log(this.links)
     this.typheous = new Typheous()
   }
 
   scrape() {
     this.queue(this.links)
-  }
-
-  makeLinks(baseUri, iterators ) {
-    let _makeLinks = (baseUri, iterators) => {
-      let its = iterators.pop()
-      let links = its[1].map( it => {
-        return baseUri.replace("${" +  its[0] + "}", it)
-      })
-      if(iterators.length == 0 ) {
-        return links
-      } else {
-        return links.map( link => {
-          return _makeLinks(link, clone(iterators))
-        })
-      }
-    }
-    return flattenDeep(_makeLinks(baseUri, iterators))
   }
 
   queue(links) {
@@ -75,7 +61,7 @@ class Scrape {
   }
 
   on(rules, recipe) {
-    Array.isArray(rules) || (rules = [rules])
+    rules = castArray(rules)
     rules.map(rl => {
       // TODO 当 recipe 为字符串时,从默认 recipe 列表中选取.
       this.rules[rl] = recipe
@@ -148,11 +134,10 @@ class Scrape {
 
   after(uri) {
     let howPick = this.howPick(uri)
-    let picker = this.picker
     let saver = this.howSave(uri)
     let linkAdder = this.addLink.bind(this)
     return function(res) {
-      let [doc, $, links] = picker(res, howPick)
+      let [doc, $, links] = pick(res, howPick)
       if(links.length > 0)
         linkAdder(links)
       saver(doc, res, uri)

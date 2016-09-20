@@ -1,52 +1,33 @@
 "use strict";
+const picker_1 = require("./picker");
 const typheous_1 = require("typheous");
 const request_1 = require("./request");
-const picker_1 = require("./picker");
 const lodash_1 = require("lodash");
+const utils_1 = require("./utils");
 class Scrape {
     constructor(seedUri, iterators, defaultRecipe, opts) {
         this.crawledLinks = [];
         this.keepedLinks = [];
+        this.rules = {};
+        this.saves = {};
         if (defaultRecipe) {
             this.defaulRecipe = defaultRecipe;
         }
         else if (lodash_1.isPlainObject(iterators)) {
             this.defaulRecipe = iterators;
+            iterators = undefined;
         }
-        this.links = [
-            "http://www.ruby-china.com"
-        ];
-        this.rules = {};
-        this.saves = {};
-        let _iterators = [];
-        iterators = [[4, 5, 6, 7], [1, 2, 3, 4, 5, 6]];
-        for (let k in iterators) {
-            _iterators.push([lodash_1.toString(k), iterators[k]]);
+        if (iterators) {
+            this.links = utils_1.iterateLinks(seedUri, iterators);
         }
-        let links = this.makeLinks("http://www.h.com/?asd=${0}&sad=${1}", _iterators);
-        let picker = new picker_1.default;
-        this.picker = picker.pick.bind(picker);
+        else {
+            this.links = lodash_1.castArray(seedUri);
+        }
+        console.log(this.links);
         this.typheous = new typheous_1.default();
     }
     scrape() {
         this.queue(this.links);
-    }
-    makeLinks(baseUri, iterators) {
-        let _makeLinks = (baseUri, iterators) => {
-            let its = iterators.pop();
-            let links = its[1].map(it => {
-                return baseUri.replace("${" + its[0] + "}", it);
-            });
-            if (iterators.length == 0) {
-                return links;
-            }
-            else {
-                return links.map(link => {
-                    return _makeLinks(link, lodash_1.clone(iterators));
-                });
-            }
-        };
-        return lodash_1.flattenDeep(_makeLinks(baseUri, iterators));
     }
     queue(links) {
         let queueLinks = links.map((x) => {
@@ -60,7 +41,7 @@ class Scrape {
         this.typheous.queue(queueLinks);
     }
     on(rules, recipe) {
-        Array.isArray(rules) || (rules = [rules]);
+        rules = lodash_1.castArray(rules);
         rules.map(rl => {
             this.rules[rl] = recipe;
         });
@@ -118,15 +99,18 @@ class Scrape {
     }
     after(uri) {
         let howPick = this.howPick(uri);
-        let picker = this.picker;
         let saver = this.howSave(uri);
         let linkAdder = this.addLink.bind(this);
         return function (res) {
-            let [doc, $, links] = picker(res, howPick);
+            let [doc, $, links] = picker_1.pick(res, howPick);
             if (links.length > 0)
                 linkAdder(links);
             saver(doc, res, uri);
         };
+    }
+    use(fn) {
+        fn(this);
+        return this;
     }
 }
 Object.defineProperty(exports, "__esModule", { value: true });
