@@ -40,24 +40,35 @@ class Scrape {
     } else {
       this.links = castArray(seedUri)
     }
-    console.log(this.links)
+    
     this.typheous = new Typheous()
   }
 
   scrape() {
-    this.queue(this.links)
+    return this.queue(this.links)
   }
 
   queue(links) {
-    let queueLinks = links.map((x)=>{
-      return {
-        uri: x,
-        processor: (error, opts)=>{ return request(opts) },
-        after: this.after(x)
-      }
+    let resolve, reject
+    let drain = new Promise((res, rej)=>{
+      resolve = res
+      reject = rej
     })
-    console.info("queued:", links.length, "urls")
-    this.typheous.queue(queueLinks)
+    try {
+      let queueLinks = links.map((x)=>{
+        return {
+          uri: x,
+          processor: (error, opts)=> request(opts),
+          after: this.after(x),
+          onDrain: ()=> {resolve()}
+        }
+      })
+      console.info("queued:", links.length, "urls")
+      this.typheous.queue(queueLinks)      
+    } catch (error) {
+      reject(error)
+    }
+    return drain
   }
 
   on(rules, recipe) {

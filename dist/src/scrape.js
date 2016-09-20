@@ -23,22 +23,33 @@ class Scrape {
         else {
             this.links = lodash_1.castArray(seedUri);
         }
-        console.log(this.links);
         this.typheous = new typheous_1.default();
     }
     scrape() {
-        this.queue(this.links);
+        return this.queue(this.links);
     }
     queue(links) {
-        let queueLinks = links.map((x) => {
-            return {
-                uri: x,
-                processor: (error, opts) => { return request_1.default(opts); },
-                after: this.after(x)
-            };
+        let resolve, reject;
+        let drain = new Promise((res, rej) => {
+            resolve = res;
+            reject = rej;
         });
-        console.info("queued:", links.length, "urls");
-        this.typheous.queue(queueLinks);
+        try {
+            let queueLinks = links.map((x) => {
+                return {
+                    uri: x,
+                    processor: (error, opts) => request_1.default(opts),
+                    after: this.after(x),
+                    onDrain: () => { resolve(); }
+                };
+            });
+            console.info("queued:", links.length, "urls");
+            this.typheous.queue(queueLinks);
+        }
+        catch (error) {
+            reject(error);
+        }
+        return drain;
     }
     on(rules, recipe) {
         rules = lodash_1.castArray(rules);
