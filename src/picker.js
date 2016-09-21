@@ -137,6 +137,14 @@ export function byJson(text, opts) {
   return text
 }
 
+export function toHtml(json) {
+
+}
+
+export function toXml(json) {
+  
+}
+
 export function byHtml(text, opts) {
   let $, links = [], flattenLines = []
   if (isString(text)) {

@@ -125,6 +125,12 @@ function byJson(text, opts) {
     return text;
 }
 exports.byJson = byJson;
+function toHtml(json) {
+}
+exports.toHtml = toHtml;
+function toXml(json) {
+}
+exports.toXml = toXml;
 function byHtml(text, opts) {
     let $, links = [], flattenLines = [];
     if (lodash_1.isString(text)) {
