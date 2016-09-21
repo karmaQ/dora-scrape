@@ -49,33 +49,29 @@ class Scrape {
   }
 
   queue(links) {
-    let resolve, reject
-    let drain = new Promise((res, rej)=>{
-      resolve = res
-      reject = rej
+    return new Promise((resolve, reject)=>{
+      try {
+        let queueLinks = links.map((x)=>{
+          return {
+            uri: x,
+            processor: (error, opts)=> request(opts),
+            after: this.after(x),
+            onDrain: ()=> {resolve()}
+          }
+        })
+        console.info("queued:", links.length, "urls")
+        this.typheous.queue(queueLinks)
+      } catch (error) {
+        reject(error)
+      }
     })
-    try {
-      let queueLinks = links.map((x)=>{
-        return {
-          uri: x,
-          processor: (error, opts)=> request(opts),
-          after: this.after(x),
-          onDrain: ()=> {resolve()}
-        }
-      })
-      console.info("queued:", links.length, "urls")
-      this.typheous.queue(queueLinks)      
-    } catch (error) {
-      reject(error)
-    }
-    return drain
   }
 
-  on(rules, recipe) {
+  on(rules, recipes) {
     rules = castArray(rules)
     rules.map(rl => {
-      // TODO 当 recipe 为字符串时,从默认 recipe 列表中选取.
-      this.rules[rl] = recipe
+      // TODO 当 recipes 为字符串时,从默认 recipes 列表中选取.
+      this.rules[rl] = recipes
     })
     this.lastOn = rules
     if(includes(rules, "default")) {

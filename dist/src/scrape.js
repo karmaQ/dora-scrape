@@ -29,32 +29,28 @@ class Scrape {
         return this.queue(this.links);
     }
     queue(links) {
-        let resolve, reject;
-        let drain = new Promise((res, rej) => {
-            resolve = res;
-            reject = rej;
+        return new Promise((resolve, reject) => {
+            try {
+                let queueLinks = links.map((x) => {
+                    return {
+                        uri: x,
+                        processor: (error, opts) => request_1.default(opts),
+                        after: this.after(x),
+                        onDrain: () => { resolve(); }
+                    };
+                });
+                console.info("queued:", links.length, "urls");
+                this.typheous.queue(queueLinks);
+            }
+            catch (error) {
+                reject(error);
+            }
         });
-        try {
-            let queueLinks = links.map((x) => {
-                return {
-                    uri: x,
-                    processor: (error, opts) => request_1.default(opts),
-                    after: this.after(x),
-                    onDrain: () => { resolve(); }
-                };
-            });
-            console.info("queued:", links.length, "urls");
-            this.typheous.queue(queueLinks);
-        }
-        catch (error) {
-            reject(error);
-        }
-        return drain;
     }
-    on(rules, recipe) {
+    on(rules, recipes) {
         rules = lodash_1.castArray(rules);
         rules.map(rl => {
-            this.rules[rl] = recipe;
+            this.rules[rl] = recipes;
         });
         this.lastOn = rules;
         if (lodash_1.includes(rules, "default")) {

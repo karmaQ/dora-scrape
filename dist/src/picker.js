@@ -159,17 +159,27 @@ function byHtml(text, opts) {
     return [doc, $, lodash_1.flattenDeep(links).filter(x => x)];
 }
 exports.byHtml = byHtml;
-function pick(res, opts) {
+function pick(res, recipe) {
     let text = res.text || "";
-    if (text.match(/^\s*</)) {
-        console.log(byJson(text));
-        return byHtml(text, opts);
-    }
-    else if (text.match(/^\s*{/)) {
-        return byJson(text, opts);
-    }
-    else {
-        return byHtml(text, opts);
+    let opts = lodash_1.clone(recipe.options) || {};
+    delete (recipe.options);
+    switch (opts.format) {
+        case 'json':
+            return byJson(text, recipe);
+        case 'html':
+            return byHtml(text, recipe);
+        case 'string':
+            return text;
+        default:
+            if (text.match(/^\s*</)) {
+                return byHtml(text, recipe);
+            }
+            else if (text.match(/^\s*{/)) {
+                return byJson(text, recipe);
+            }
+            else {
+                return byHtml(text, recipe);
+            }
     }
 }
 exports.pick = pick;
