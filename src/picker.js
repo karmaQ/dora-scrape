@@ -14,6 +14,7 @@ import { isNumber,
        } from "lodash"
 import * as object from "lodash/fp/object"
 import * as pipes from "./pipes"
+import { toHtml } from "./to_html"
 let mapValuesWithKey = object.mapValues.convert({ 'cap': false })
 import {
   isBlank
@@ -133,12 +134,15 @@ export function html($, recipe) {
 }
 
 export function byJson(text, opts) {
-  // TODO 将 JSON 等价转化为 html
-  return text
-}
-
-export function toHtml(json) {
-
+  // TODO 将 JSON 等价转化为 html, xml
+  try {
+    let json = JSON.parse(text)
+    let html = toHtml(json)
+  } catch(error) {
+    console.log(error)
+    return null
+  }
+  return byHtml(html, opts)
 }
 
 export function toXml(json) {
@@ -171,6 +175,7 @@ export function byHtml(text, opts) {
 export function pick(res, opts)  {
   let text = res.text || ""
   if (text.match(/^\s*</)) {
+    console.log(byJson(text))
     return byHtml(text, opts)
   } else if (text.match(/^\s*{/)) {
     return byJson(text, opts)

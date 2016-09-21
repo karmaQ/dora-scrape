@@ -3,6 +3,7 @@ const cheerio = require("cheerio");
 const lodash_1 = require("lodash");
 const object = require("lodash/fp/object");
 const pipes = require("./pipes");
+const to_html_1 = require("./to_html");
 let mapValuesWithKey = object.mapValues.convert({ 'cap': false });
 const utils_1 = require("./utils");
 function keepLinks(ret, recipe) {
@@ -122,12 +123,17 @@ function html($, recipe) {
 }
 exports.html = html;
 function byJson(text, opts) {
-    return text;
+    try {
+        let json = JSON.parse(text);
+        let html = to_html_1.toHtml(json);
+    }
+    catch (error) {
+        console.log(error);
+        return null;
+    }
+    return byHtml(html, opts);
 }
 exports.byJson = byJson;
-function toHtml(json) {
-}
-exports.toHtml = toHtml;
 function toXml(json) {
 }
 exports.toXml = toXml;
@@ -156,6 +162,7 @@ exports.byHtml = byHtml;
 function pick(res, opts) {
     let text = res.text || "";
     if (text.match(/^\s*</)) {
+        console.log(byJson(text));
         return byHtml(text, opts);
     }
     else if (text.match(/^\s*{/)) {
