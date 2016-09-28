@@ -1,3 +1,4 @@
+import { toString } from "lodash"
 /**
  * Escape the given string of `html`.
  *
@@ -25,6 +26,24 @@ function escape (html) {
 
 function span(key, str) {
   return '<span class="' + key + '">' + str + '</span>';
+}
+
+/**
+ * Convert JSON Object to attr.
+ *
+ * @param {Object} obj
+ * @return {String}
+ * @api private
+ */
+
+export function toAttrs(obj) {
+  let ret = ''
+  for (let key in obj) {
+    if(typeof(obj[key]) != 'object') {
+      ret += ` ${key}='${toString(obj[key]).replace('\'', '')}'`
+    }
+  }
+  return ret
 }
 
 /**
@@ -68,7 +87,7 @@ export function toHtml(obj, indents) {
     ++indents;
 
     buf = '<ul>\n' + obj.map(function(val){
-      return indent() + "<li>" +toHtml(val, indents) + "</li>"
+      return indent() + "<li" + toAttrs(val) + ">" +toHtml(val, indents) + "</li>"
     }).join('\n');
 
     --indents;
@@ -76,7 +95,7 @@ export function toHtml(obj, indents) {
     return buf;
   }
 
-  buf = '';
+  buf = '<html><body>';
   var keys = Object.keys(obj);
   var len = keys.length;
   if (len) buf += '\n';
@@ -89,6 +108,6 @@ export function toHtml(obj, indents) {
   --indents;
 
   if (len) buf += '\n' + indent();
-
+  buf += '</body></html>'
   return buf;
 }

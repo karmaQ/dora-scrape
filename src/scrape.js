@@ -1,4 +1,4 @@
-import { pick } from "./picker"
+import { picker } from "./picker"
 import Typheous from "typheous"
 import request from "./request"
 
@@ -10,11 +10,16 @@ import { isPlainObject,
          flattenDeep,
          isObject,
          isArray,
+         isString,
+         isRegExp,
          toString,
          clone,
          mapKeys,
          uniq,
-         castArray
+         castArray,
+         assign,
+         pick,
+         omit
        } from "lodash"
 
 import {
@@ -26,7 +31,7 @@ class Scrape {
     this.crawledLinks = []
     this.keepedLinks = []
     this.rules = {}
-    this.saves = {}    
+    this.thens = {}
     // 设置默认值
     if(defaultRecipe) {
       this.defaulRecipe = defaultRecipe
@@ -37,32 +42,43 @@ class Scrape {
 
     if(iterators) {
       this.links = iterateLinks(seedUri, iterators)
-    } else {
+    } else if(seedUri) {
       this.links = castArray(seedUri)
+    } else {
+      this.links = []
     }
-    
+    // console.log(this.links)
     this.typheous = new Typheous()
+    this.request = request
+  }
+
+  concat(links) {
+    return this.links = this.links.concat(links)
   }
 
   scrape() {
     return this.queue(this.links)
   }
 
-  queue(links) {
+  queue(links, ctxIn) {
     return new Promise((resolve, reject)=>{
       try {
         let queueLinks = links.map((x)=>{
+          let uri = x.uri ? x.uri : x
           return {
-            uri: x,
+            uri: uri,
             processor: (error, opts)=> request(opts),
-            after: this.after(x),
-            onDrain: ()=> {resolve()}
+            after: this.after(x, x.info, ctxIn),
+            onDrain: ()=> {
+              console.log("resolve")
+              resolve()
+            }
           }
         })
         console.info("queued:", links.length, "urls")
         this.typheous.queue(queueLinks)
       } catch (error) {
-        reject(error)
+        return reject(error)
       }
     })
   }
@@ -85,22 +101,6 @@ class Scrape {
     this.doKeep = callback || ((x)=> {})
   }
 
-  save(rules, callback) {
-    if(isFunction(rules)) {
-      callback = rules
-      rules = this.lastOn || ["default"]
-    }
-    Array.isArray(rules) || (rules = [rules])
-    rules.map(rl => this.saves[rl] = callback )
-    return this
-  }
-
-  howSave(uri) {
-    return this.getRules(uri,
-                         this.saves,
-                         recipes => flattenDeep(recipes)[0] )
-  }
-
   howPipe(uri) {
     return this.getRules(uri, this.keeps, recipes => flatten(recipes))
   }
@@ -113,11 +113,17 @@ class Scrape {
     })
   }
 
-  getRules(uri, does, how) {
+  getRules(link, does, how) {
     let recipes = []
     // TODO 缓存 rules
     for(let r in does) {
-      if(new RegExp(r).test(uri)) {
+      let isMatch, uri = link.uri ? link.uri : link
+      if (isString(r)) {
+        isMatch = includes(uri, r)
+      } else if (isRegExp(r)){
+        isMatch = r.test(uri)
+      }
+      if(isMatch) {
         recipes.push(does[r])
       }
     }
@@ -135,19 +141,65 @@ class Scrape {
     ;
   }
 
-  addLink(links) {
-    this.queue(links)
+  then(rules, callback) {
+    if(isFunction(rules)) {
+      callback = rules
+      rules = this.lastOn || ["default"]
+    }
+    Array.isArray(rules) || (rules = [rules])
+    rules.map(rl => {
+      if(this.thens[rl]) {
+        this.thens[rl].push(callback) 
+      } else {
+        this.thens[rl] = castArray(callback)
+      }
+    })
+    return this
   }
 
-  after(uri) {
+  howThen(uri) {
+    let theners = this.getRules(uri,
+                                this.thens,
+                                recipes => flattenDeep(recipes) )
+    return async (doc, res, uri)=> {
+      try {
+        await theners.reduce( async (ret, thener) => {
+          if(ret && ret.doc) {
+            await thener(ret.doc, ret.res, ret.uri)
+          } else {
+            await thener(ret, doc, res, uri)
+          }
+        }, {doc, res, uri})
+      } catch (error) {
+        console.log(error) 
+      }
+    }
+  }
+
+  save(rules, callback) {
+    return this.then(rules, callback)
+  }
+
+  after(uri, ctx, ctxIh) {
     let howPick = this.howPick(uri)
-    let saver = this.howSave(uri)
-    let linkAdder = this.addLink.bind(this)
-    return function(res) {
-      let [doc, $, links] = pick(res, howPick)
-      if(links.length > 0)
-        linkAdder(links)
-      saver(doc, res, uri)
+    let thener = this.howThen(uri)
+    return (res) => {
+      let [doc, opts, follows] = picker(res, howPick)
+      if(opts.fields) {
+        doc = pick(doc, opts.fields)
+      }
+      if(opts.except) {
+        doc = omit(doc, opts.except);
+      }
+      doc = assign(ctxIh, ctx, doc)
+      if(follows.length > 0) {
+        if (opts.context) {
+          this.queue(follows, doc)
+        } else {
+          this.queue(follows)
+        }
+      }
+      thener && thener(doc, res, uri)
     }
   }
   

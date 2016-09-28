@@ -1,4 +1,5 @@
 "use strict";
+const lodash_1 = require("lodash");
 function escape(html) {
     return String(html)
         .replace(/&/g, '&amp;')
@@ -9,6 +10,16 @@ function escape(html) {
 function span(key, str) {
     return '<span class="' + key + '">' + str + '</span>';
 }
+function toAttrs(obj) {
+    let ret = '';
+    for (let key in obj) {
+        if (typeof (obj[key]) != 'object') {
+            ret += ` ${key}='${lodash_1.toString(obj[key]).replace('\'', '')}'`;
+        }
+    }
+    return ret;
+}
+exports.toAttrs = toAttrs;
 function toHtml(obj, indents) {
     indents = indents || 1;
     function indent() {
@@ -31,13 +42,13 @@ function toHtml(obj, indents) {
     if (Array.isArray(obj)) {
         ++indents;
         buf = '<ul>\n' + obj.map(function (val) {
-            return indent() + "<li>" + toHtml(val, indents) + "</li>";
+            return indent() + "<li" + toAttrs(val) + ">" + toHtml(val, indents) + "</li>";
         }).join('\n');
         --indents;
         buf += '\n' + indent() + '</ul>';
         return buf;
     }
-    buf = '';
+    buf = '<html><body>';
     var keys = Object.keys(obj);
     var len = keys.length;
     if (len)
@@ -50,6 +61,7 @@ function toHtml(obj, indents) {
     --indents;
     if (len)
         buf += '\n' + indent();
+    buf += '</body></html>';
     return buf;
 }
 exports.toHtml = toHtml;

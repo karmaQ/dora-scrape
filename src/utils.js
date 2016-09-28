@@ -2,11 +2,13 @@ import { isNumber,
          isString,
          isRegExp,
          isEmpty,
+         isArray,
          clone,
          uniq,
          flattenDeep,
          toString
        } from "lodash"
+import * as util from 'util'
 
 export const isBlank = (el) => {
   if (isString(el)) {
@@ -19,23 +21,26 @@ export const isBlank = (el) => {
 }
 
 export const iterateLinks = (baseUri, iterators) => {
-  let _iterators = []
-  // iterators = [[4,5,6,7],[1,2,3,4,5,6]]
+  let _iterators = [], _iteratobjs = {}
   for(let i in iterators) {
     _iterators.push([toString(i), iterators[i]])
   }
-  let _makeLinks = (baseUri, iterators) => {
-    let its = iterators.pop()
-    let links = its[1].map( it => {
+  let _makeLinks = (baseUri, itras) => {
+    let its = itras.pop(), links
+    links = its[1].map( it => {
       return baseUri.replace("${" + its[0] + "}", it)
-    })
-    if(iterators.length == 0 ) {
+    })    
+    if(itras.length == 0 ) {
       return links
     } else {
       return links.map( link => {
-        return _makeLinks(link, clone(iterators))
+        return _makeLinks(link, clone(itras))
       })
     }
   }
   return uniq(flattenDeep(_makeLinks(baseUri, _iterators)))
+}
+
+export const debug = (obj) => {
+  console.log(util.inspect(obj, true, null));
 }

@@ -1,6 +1,8 @@
 import * as request from "superagent"
 export default (opts)=>{
   console.info("request:", opts.uri)
+
+  opts.uri = encodeURI(opts.uri)
   let req = request(opts.method || "GET", opts.uri)
   opts.headers = opts.headers || {}
   //opts.gzip && req.set('Accept-Encoding', 'gzip, deflate')
@@ -12,7 +14,6 @@ export default (opts)=>{
   opts.auth && req.auth(opts.auth.user, opts.auth.pwd)
   let buffer = []
   req.on('request', (chunk)=>{
-    // console.log("------>>>----")
     buffer.push(chunk)
   })
 

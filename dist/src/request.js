@@ -3,6 +3,7 @@ const request = require("superagent");
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = (opts) => {
     console.info("request:", opts.uri);
+    opts.uri = encodeURI(opts.uri);
     let req = request(opts.method || "GET", opts.uri);
     opts.headers = opts.headers || {};
     opts.formData && req.send(opts.formData);
