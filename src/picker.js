@@ -12,7 +12,10 @@ import { isNumber,
          flattenDeep,
          castArray,
          assign,
-         isPlainObject
+         isPlainObject,
+         omit,
+         get,
+         keys
        } from "lodash"
 import * as object from "lodash/fp/object"
 import * as pipes from "./pipes"
@@ -22,30 +25,55 @@ import {
   isBlank
 } from "./utils"
 
-function followLinks(ret, recipe) {
+const reserved = ['follow', 'xpath', 'sels', 'keep', 
+                  'attrs', 'how', 'convert', 'pipes', 
+                  'flatten', 'context']
+
+// function followLinks(ret, recipe) {
+//   if(!ret) { return [] }
+//   let links = []
+//   let getVal = (item, path) => {
+//     return path.reduce((r, k)=>{return r[k]}, item)
+//   }
+//   let makeLink = (link, info) => {
+//     return recipe.context ? { uri: link, info: info } : link
+//   }
+//   if(isString(recipe.follow)) {
+//     let _ret = isArray(ret) ? ret : [ret]
+//     let path = split(recipe.follow, ".")
+//     _ret.map((x) => {
+//       try {
+//         links.push(makeLink(getVal(x, path), x))
+//       } catch(e) {
+//         console.log(e)
+//       }
+//     })
+//   } else if (recipe) {
+//     links.push(makeLink(ret))
+//   } else {
+//     links.push(makeLink(ret))
+//   }
+//   return links
+// }
+
+function followLinks(ret, recipe, urikey) {
   if(!ret) { return [] }
   let links = []
-  let getVal = (item, path) => {
-    return path.reduce((r, k)=>{return r[k]}, item)
-  }
   let makeLink = (link, info) => {
-    // console.log(info)
-    return recipe.context ? { uri: link, info: info } : link
-  }
+    return recipe.context ? link : { uri: link, info: info }
+  }  
   if(isString(recipe.follow)) {
-    let _ret = isArray(ret) ? ret : [ret]
-    let path = split(recipe.follow, ".")
-    _ret.map((x) => {
+    let _ret = castArray(ret)
+    _ret.map((item) => {
       try {
-        links.push(makeLink(getVal(x, path), x))
+        let url = get(item, recipe.follow)
+        if(url) { links.push(makeLink(url, item)) }
       } catch(e) {
         console.log(e)
       }
     })
-  } else if (recipe) {
-    links.push(makeLink(ret))
   } else {
-    links.push(makeLink(ret))
+    links.push(makeLink(ret, {[urikey]: ret}))
   }
   return links
 }
@@ -70,8 +98,9 @@ function line($, recipe) {
     }
   } else if (isRegExp(recipe.sels)){
     ret = $.html().match(recipe.sels)
+    ret = isFunction(recipe.convert) ? recipe.convert(ret) : ret
   } else {
-    ret = null
+    ret = html($, recipe)
   }
   return isBlank(ret) ? recipe.default : ret
 }
@@ -79,6 +108,8 @@ function line($, recipe) {
 export function html($, recipe) {
   if(isString(recipe)) { recipe = { sels: recipe } }
   let sel = recipe.sels
+  
+  let subs = omit(recipe, reserved)
   // 为 cheerio 实现 eq
   if(includes(sel, '::')) {
     let eqAttr
@@ -93,7 +124,7 @@ export function html($, recipe) {
     }
   }
   // 处理特殊标签的默认属性
-  if (sel.indexOf("meta") >= 0) {
+  if (includes(sel, 'meta')) {
     recipe.attrs = recipe.attrs || "content"
   }
   // 处理属性
@@ -113,22 +144,19 @@ export function html($, recipe) {
     }
   }
   // 处理嵌套查询
-  if(recipe.subs) {
-    let subHow
-    if(recipe.subs.sels) {
-      subHow = function($elm) {
-        return line($elm.find.bind($elm), recipe.subs)
+  if(subs.length > 0 || (keys(subs)).length > 0) {
+    let subHow = function($elm) {
+      let ret = {}
+      if($elm.find) {
+        $elm = $elm.find.bind($elm)
       }
-    } else {
-      subHow = function($elm) {
-        let ret = {}
-        for (var key in recipe.subs) {
-          ret[key] = line($elm.find.bind($elm), recipe.subs[key])
-        }
-        return ret
+      for (var key in subs) {
+        ret[key] = line($elm, subs[key])
       }
+      return ret
     }
     recipe.how = subHow
+  }
     // 感觉没啥太大用啊
     // if(recipe.how) {
     //   recipe.how = function($elm) {
@@ -146,7 +174,6 @@ export function html($, recipe) {
     // } else {
     //   recipe.how = subHow
     // }
-  }
   recipe.how = recipe.how || "text"
   let getElm = ($elm) => {
     let ret
@@ -168,16 +195,23 @@ export function html($, recipe) {
       let rpipes = recipe.pipes.split('|')
       ret = rpipes.reduce((a,b)=>{ return pipes[b](a) }, ret)
     }
+
     ret = isFunction(recipe.convert) ? recipe.convert(ret) : ret
     return ret
   }
   if (includes(sel, '**')) {
     sel = split(sel, '**')[0]
+    // let $elm = sel ? $(sel) : $
     let ret = []
-    $(sel).each( (i, elm) => ret.push(getElm($(elm))))
+    if(sel.length > 0) {
+      $(sel).each( (i, elm) => ret.push(getElm($(elm))))
+    } else {
+      $.root().children().each( (i, elm) => ret.push(getElm($(elm))))
+    }
     return ret
   } else {
-    let $elm = $(sel)
+    let $elm = sel ? $(sel) : $
+    // let $elm = $(sel)
     if(isNumber(recipe.eq)) {
       $elm = $elm.eq(recipe.eq)
     }
@@ -185,12 +219,13 @@ export function html($, recipe) {
   }
 }
 
-export function byJson(text, recipe, opts) {
+export function byJson(text, recipe, opts, res) {
   // TODO 将 JSON 等价转化为 html, xml
   try {
     let json = JSON.parse(text)
     text = toHtml(json)
   } catch(error) {
+    console.log(res.uri)
     console.log(error)
     return null
   }
@@ -207,16 +242,17 @@ export function byHtml(text, recipe, opts) {
     $ = cheerio.load(text, { decodeEntities: false })
   }
   let doc = mapValuesWithKey( (rcp, k) =>{
+    // 全部用 line 和 subs 一样处理掉
     let ret = line($, rcp)
     if(rcp.follow) {
-      links.push(followLinks(ret, rcp))
+      links.push(followLinks(ret, rcp, k))
     }
     if(rcp.flatten) {
       flattenLines.push(k)
     }
     return ret
   }, recipe)
-  // TODO object.assign 重构
+  
   flattenLines.map(x=>{
     assign(doc, doc[x])
     delete(doc[x])
@@ -239,7 +275,7 @@ export function picker(res, recipe)  {
   }
   switch (opts.format) {
     case 'json':
-      return byJson(text, recipe, opts)
+      return byJson(text, recipe, opts, res)
     case 'html':
       return byHtml(text, recipe, opts)
     case 'string':

@@ -6,34 +6,33 @@ const pipes = require("./pipes");
 const to_html_1 = require("./to_html");
 let mapValuesWithKey = object.mapValues.convert({ 'cap': false });
 const utils_1 = require("./utils");
-function followLinks(ret, recipe) {
+const reserved = ['follow', 'xpath', 'sels', 'keep',
+    'attrs', 'how', 'convert', 'pipes',
+    'flatten', 'context'];
+function followLinks(ret, recipe, urikey) {
     if (!ret) {
         return [];
     }
     let links = [];
-    let getVal = (item, path) => {
-        return path.reduce((r, k) => { return r[k]; }, item);
-    };
     let makeLink = (link, info) => {
-        return recipe.context ? { uri: link, info: info } : link;
+        return recipe.context ? link : { uri: link, info: info };
     };
     if (lodash_1.isString(recipe.follow)) {
-        let _ret = lodash_1.isArray(ret) ? ret : [ret];
-        let path = lodash_1.split(recipe.follow, ".");
-        _ret.map((x) => {
+        let _ret = lodash_1.castArray(ret);
+        _ret.map((item) => {
             try {
-                links.push(makeLink(getVal(x, path), x));
+                let url = lodash_1.get(item, recipe.follow);
+                if (url) {
+                    links.push(makeLink(url, item));
+                }
             }
             catch (e) {
                 console.log(e);
             }
         });
     }
-    else if (recipe) {
-        links.push(makeLink(ret));
-    }
     else {
-        links.push(makeLink(ret));
+        links.push(makeLink(ret, { [urikey]: ret }));
     }
     return links;
 }
@@ -60,9 +59,10 @@ function line($, recipe) {
     }
     else if (lodash_1.isRegExp(recipe.sels)) {
         ret = $.html().match(recipe.sels);
+        ret = lodash_1.isFunction(recipe.convert) ? recipe.convert(ret) : ret;
     }
     else {
-        ret = null;
+        ret = html($, recipe);
     }
     return utils_1.isBlank(ret) ? recipe.default : ret;
 }
@@ -71,6 +71,7 @@ function html($, recipe) {
         recipe = { sels: recipe };
     }
     let sel = recipe.sels;
+    let subs = lodash_1.omit(recipe, reserved);
     if (lodash_1.includes(sel, '::')) {
         let eqAttr;
         [sel, eqAttr] = lodash_1.split(sel, "::");
@@ -82,7 +83,7 @@ function html($, recipe) {
             recipe.attrs = lodash_1.includes(eqAttr, '&') ? lodash_1.split(eqAttr, '&') : eqAttr;
         }
     }
-    if (sel.indexOf("meta") >= 0) {
+    if (lodash_1.includes(sel, 'meta')) {
         recipe.attrs = recipe.attrs || "content";
     }
     if (recipe.attrs) {
@@ -100,22 +101,17 @@ function html($, recipe) {
             };
         }
     }
-    if (recipe.subs) {
-        let subHow;
-        if (recipe.subs.sels) {
-            subHow = function ($elm) {
-                return line($elm.find.bind($elm), recipe.subs);
-            };
-        }
-        else {
-            subHow = function ($elm) {
-                let ret = {};
-                for (var key in recipe.subs) {
-                    ret[key] = line($elm.find.bind($elm), recipe.subs[key]);
-                }
-                return ret;
-            };
-        }
+    if (subs.length > 0 || (lodash_1.keys(subs)).length > 0) {
+        let subHow = function ($elm) {
+            let ret = {};
+            if ($elm.find) {
+                $elm = $elm.find.bind($elm);
+            }
+            for (var key in subs) {
+                ret[key] = line($elm, subs[key]);
+            }
+            return ret;
+        };
         recipe.how = subHow;
     }
     recipe.how = recipe.how || "text";
@@ -144,11 +140,16 @@ function html($, recipe) {
     if (lodash_1.includes(sel, '**')) {
         sel = lodash_1.split(sel, '**')[0];
         let ret = [];
-        $(sel).each((i, elm) => ret.push(getElm($(elm))));
+        if (sel.length > 0) {
+            $(sel).each((i, elm) => ret.push(getElm($(elm))));
+        }
+        else {
+            $.root().children().each((i, elm) => ret.push(getElm($(elm))));
+        }
         return ret;
     }
     else {
-        let $elm = $(sel);
+        let $elm = sel ? $(sel) : $;
         if (lodash_1.isNumber(recipe.eq)) {
             $elm = $elm.eq(recipe.eq);
         }
@@ -156,12 +157,13 @@ function html($, recipe) {
     }
 }
 exports.html = html;
-function byJson(text, recipe, opts) {
+function byJson(text, recipe, opts, res) {
     try {
         let json = JSON.parse(text);
         text = to_html_1.toHtml(json);
     }
     catch (error) {
+        console.log(res.uri);
         console.log(error);
         return null;
     }
@@ -179,7 +181,7 @@ function byHtml(text, recipe, opts) {
     let doc = mapValuesWithKey((rcp, k) => {
         let ret = line($, rcp);
         if (rcp.follow) {
-            links.push(followLinks(ret, rcp));
+            links.push(followLinks(ret, rcp, k));
         }
         if (rcp.flatten) {
             flattenLines.push(k);
@@ -207,7 +209,7 @@ function picker(res, recipe) {
     }
     switch (opts.format) {
         case 'json':
-            return byJson(text, recipe, opts);
+            return byJson(text, recipe, opts, res);
         case 'html':
             return byHtml(text, recipe, opts);
         case 'string':

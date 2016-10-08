@@ -5,7 +5,7 @@ export default (opts)=>{
   opts.uri = encodeURI(opts.uri)
   let req = request(opts.method || "GET", opts.uri)
   opts.headers = opts.headers || {}
-  //opts.gzip && req.set('Accept-Encoding', 'gzip, deflate')
+  opts.gzip && req.set('Accept-Encoding', 'gzip, deflate')
 
   opts.formData && req.send(opts.formData)
   opts.uri.query && req.query(opts.uri.query)
@@ -13,6 +13,7 @@ export default (opts)=>{
   opts.cors && req.withCredentials()
   opts.auth && req.auth(opts.auth.user, opts.auth.pwd)
   let buffer = []
+  req.set("user-agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36")
   req.on('request', (chunk)=>{
     buffer.push(chunk)
   })

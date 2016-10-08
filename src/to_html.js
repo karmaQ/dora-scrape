@@ -95,7 +95,7 @@ export function toHtml(obj, indents) {
     return buf;
   }
 
-  buf = '<html><body>';
+  // buf = '<html><body>';
   var keys = Object.keys(obj);
   var len = keys.length;
   if (len) buf += '\n';
@@ -108,6 +108,6 @@ export function toHtml(obj, indents) {
   --indents;
 
   if (len) buf += '\n' + indent();
-  buf += '</body></html>'
+  // buf += '</body></html>'
   return buf;
 }

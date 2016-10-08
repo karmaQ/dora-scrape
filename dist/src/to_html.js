@@ -48,7 +48,6 @@ function toHtml(obj, indents) {
         buf += '\n' + indent() + '</ul>';
         return buf;
     }
-    buf = '<html><body>';
     var keys = Object.keys(obj);
     var len = keys.length;
     if (len)
@@ -61,7 +60,6 @@ function toHtml(obj, indents) {
     --indents;
     if (len)
         buf += '\n' + indent();
-    buf += '</body></html>';
     return buf;
 }
 exports.toHtml = toHtml;

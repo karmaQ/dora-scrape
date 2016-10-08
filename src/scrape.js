@@ -48,7 +48,11 @@ class Scrape {
       this.links = []
     }
     // console.log(this.links)
-    this.typheous = new Typheous()
+    this.typheous = new Typheous({
+      onDrain: ()=> {
+        console.log("resolved & drained")
+      }
+    })
     this.request = request
   }
 
@@ -60,27 +64,43 @@ class Scrape {
     return this.queue(this.links)
   }
 
+  // queue(links, ctxIn) {
+  //   return new Promise((resolve, reject)=>{
+  //     try {
+  //       let queueLinks = links.map((x)=>{
+  //         let uri = x.uri ? x.uri : x
+  //         return {
+  //           uri: uri,
+  //           processor: (error, opts)=> request(opts),
+  //           after: this.after(x, x.info, ctxIn),
+  //           onDrain: ()=> {
+  //             resolve()
+  //             console.log("resolved & drained")
+  //           }
+  //         }
+  //       })
+  //       console.info("queued:", links.length, "urls")
+  //       this.typheous.queue(queueLinks)
+  //     } catch (error) {
+  //       console.log('rejected')
+  //       return reject(error)
+  //     }
+  //   })
+  // }
+
   queue(links, ctxIn) {
-    return new Promise((resolve, reject)=>{
-      try {
-        let queueLinks = links.map((x)=>{
-          let uri = x.uri ? x.uri : x
-          return {
-            uri: uri,
-            processor: (error, opts)=> request(opts),
-            after: this.after(x, x.info, ctxIn),
-            onDrain: ()=> {
-              console.log("resolve")
-              resolve()
-            }
-          }
-        })
-        console.info("queued:", links.length, "urls")
-        this.typheous.queue(queueLinks)
-      } catch (error) {
-        return reject(error)
+    let queueLinks = links.map((x)=>{
+      let uri = x.uri ? x.uri : x
+      if(!includes(uri, 'http')){return null}
+      return {
+        uri: uri,
+        priority: x.priority || 5,
+        processor: (error, opts)=> request(opts),
+        after: this.after(x, x.info, ctxIn),
       }
-    })
+    }).filter(x=>x)
+    console.info("queued:", links.length, "urls")
+    this.typheous.queue(queueLinks)
   }
 
   on(rules, recipes) {
@@ -179,27 +199,27 @@ class Scrape {
   save(rules, callback) {
     return this.then(rules, callback)
   }
-
+  // ctx 是 uri 中附带的 info
   after(uri, ctx, ctxIh) {
     let howPick = this.howPick(uri)
     let thener = this.howThen(uri)
-    return (res) => {
+    return async (res) => {
       let [doc, opts, follows] = picker(res, howPick)
+      // doc = assign(ctxIh, ctx, doc)
+      if(follows.length > 0) {
+        if (opts.context) {
+          await this.queue(follows, assign(ctxIh, doc))
+        } else {
+          await this.queue(follows)
+        }
+      }
       if(opts.fields) {
         doc = pick(doc, opts.fields)
       }
       if(opts.except) {
         doc = omit(doc, opts.except);
-      }
-      doc = assign(ctxIh, ctx, doc)
-      if(follows.length > 0) {
-        if (opts.context) {
-          this.queue(follows, doc)
-        } else {
-          this.queue(follows)
-        }
-      }
-      thener && thener(doc, res, uri)
+      }      
+      thener && thener(assign(ctx, doc), res, uri)
     }
   }
   

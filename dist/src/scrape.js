@@ -34,7 +34,11 @@ class Scrape {
         else {
             this.links = [];
         }
-        this.typheous = new typheous_1.default();
+        this.typheous = new typheous_1.default({
+            onDrain: () => {
+                console.log("resolved & drained");
+            }
+        });
         this.request = request_1.default;
     }
     concat(links) {
@@ -44,27 +48,20 @@ class Scrape {
         return this.queue(this.links);
     }
     queue(links, ctxIn) {
-        return new Promise((resolve, reject) => {
-            try {
-                let queueLinks = links.map((x) => {
-                    let uri = x.uri ? x.uri : x;
-                    return {
-                        uri: uri,
-                        processor: (error, opts) => request_1.default(opts),
-                        after: this.after(x, x.info, ctxIn),
-                        onDrain: () => {
-                            console.log("resolve");
-                            resolve();
-                        }
-                    };
-                });
-                console.info("queued:", links.length, "urls");
-                this.typheous.queue(queueLinks);
+        let queueLinks = links.map((x) => {
+            let uri = x.uri ? x.uri : x;
+            if (!lodash_1.includes(uri, 'http')) {
+                return null;
             }
-            catch (error) {
-                return reject(error);
-            }
-        });
+            return {
+                uri: uri,
+                priority: x.priority || 5,
+                processor: (error, opts) => request_1.default(opts),
+                after: this.after(x, x.info, ctxIn),
+            };
+        }).filter(x => x);
+        console.info("queued:", links.length, "urls");
+        this.typheous.queue(queueLinks);
     }
     on(rules, recipes) {
         rules = lodash_1.castArray(rules);
@@ -155,25 +152,24 @@ class Scrape {
     after(uri, ctx, ctxIh) {
         let howPick = this.howPick(uri);
         let thener = this.howThen(uri);
-        return (res) => {
+        return (res) => __awaiter(this, void 0, void 0, function* () {
             let [doc, opts, follows] = picker_1.picker(res, howPick);
+            if (follows.length > 0) {
+                if (opts.context) {
+                    yield this.queue(follows, lodash_1.assign(ctxIh, doc));
+                }
+                else {
+                    yield this.queue(follows);
+                }
+            }
             if (opts.fields) {
                 doc = lodash_1.pick(doc, opts.fields);
             }
             if (opts.except) {
                 doc = lodash_1.omit(doc, opts.except);
             }
-            doc = lodash_1.assign(ctxIh, ctx, doc);
-            if (follows.length > 0) {
-                if (opts.context) {
-                    this.queue(follows, doc);
-                }
-                else {
-                    this.queue(follows);
-                }
-            }
-            thener && thener(doc, res, uri);
-        };
+            thener && thener(lodash_1.assign(ctx, doc), res, uri);
+        });
     }
     use(fn) {
         fn(this);
