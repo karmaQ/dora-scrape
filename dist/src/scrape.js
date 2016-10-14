@@ -48,25 +48,58 @@ class Scrape {
         return this.queue(this.links);
     }
     queue(links, ctxIn) {
-        let queueLinks = links.map((x) => {
-            let uri = x.uri ? x.uri : x;
-            if (!lodash_1.includes(uri, 'http')) {
-                return null;
+        let linkLength = links.length;
+        return Promise.resolve(new Promise((resolve, reject) => {
+            try {
+                let queueLinks = links.map((x) => {
+                    let uri = x.uri ? x.uri : x;
+                    if (!lodash_1.includes(uri, 'http')) {
+                        if (--linkLength == 0) {
+                            resolve();
+                        }
+                        return null;
+                    }
+                    return {
+                        uri: uri,
+                        priority: x.priority || 5,
+                        processor: (error, opts) => request_1.default(opts),
+                        after: (retval) => __awaiter(this, void 0, void 0, function* () {
+                            try {
+                                yield this.after(x, x.info, ctxIn)(retval);
+                            }
+                            catch (error) {
+                                console.log(error);
+                            }
+                            if (--linkLength == 0) {
+                                console.log('>>> resolve <<<');
+                                resolve();
+                            }
+                        }),
+                    };
+                });
+                console.info("queued:", links.length, "urls");
+                this.typheous.queue(queueLinks);
             }
-            return {
-                uri: uri,
-                priority: x.priority || 5,
-                processor: (error, opts) => request_1.default(opts),
-                after: this.after(x, x.info, ctxIn),
-            };
-        }).filter(x => x);
-        console.info("queued:", links.length, "urls");
-        this.typheous.queue(queueLinks);
+            catch (error) {
+                console.log('rejected');
+                console.log(error);
+                return reject(error);
+            }
+        }));
     }
     on(rules, recipes) {
         rules = lodash_1.castArray(rules);
         rules.map(rl => {
-            this.rules[rl] = recipes;
+            if (lodash_1.isFunction(rl)) {
+                let $rl = "$func$_" + lodash_1.keys(this.rules).length;
+                this.rules[$rl] = {
+                    on: rl,
+                    does: recipes
+                };
+            }
+            else {
+                this.rules[rl] = recipes;
+            }
         });
         this.lastOn = rules;
         if (lodash_1.includes(rules, "default")) {
@@ -74,11 +107,32 @@ class Scrape {
         }
         return this;
     }
-    keep(callback) {
-        this.doKeep = callback || ((x) => { });
-    }
-    howPipe(uri) {
-        return this.getRules(uri, this.keeps, recipes => lodash_1.flatten(recipes));
+    then(rules, callback) {
+        if (lodash_1.isFunction(rules)) {
+            callback = rules;
+            rules = this.lastOn || ["default"];
+        }
+        rules = lodash_1.castArray(rules);
+        rules.map(rl => {
+            if (lodash_1.isFunction(rl)) {
+                let $rl = "$func$_" + lodash_1.keys(this.rules).length;
+                if (this.thens[$rl]) {
+                    this.thens[$rl].does.push(callback);
+                }
+                else {
+                    this.thens[$rl] = {
+                        on: rl, does: [callback]
+                    };
+                }
+            }
+            else {
+                if (!this.thens[rl]) {
+                    this.thens[rl] = [];
+                }
+                this.thens[rl].push(callback);
+            }
+        });
+        return this;
     }
     howPick(uri) {
         return this.getRules(uri, this.rules, recipes => {
@@ -90,15 +144,21 @@ class Scrape {
     getRules(link, does, how) {
         let recipes = [];
         for (let r in does) {
-            let isMatch, uri = link.uri ? link.uri : link;
-            if (lodash_1.isString(r)) {
-                isMatch = lodash_1.includes(uri, r);
+            let isMatch, _do, uri = link.uri ? link.uri : link;
+            if (lodash_1.startsWith(r, "$func$_")) {
+                isMatch = does[r].on(uri, link);
+                _do = does[r].does;
             }
-            else if (lodash_1.isRegExp(r)) {
+            else if (lodash_1.startsWith(r, "$reg$_")) {
                 isMatch = r.test(uri);
+                _do = does[r];
+            }
+            else {
+                isMatch = lodash_1.includes(uri, r);
+                _do = does[r];
             }
             if (isMatch) {
-                recipes.push(does[r]);
+                recipes.push(_do);
             }
         }
         if (does.default) {
@@ -106,27 +166,8 @@ class Scrape {
         }
         return how(recipes);
     }
-    pipe() {
-        ;
-    }
     processor() {
         ;
-    }
-    then(rules, callback) {
-        if (lodash_1.isFunction(rules)) {
-            callback = rules;
-            rules = this.lastOn || ["default"];
-        }
-        Array.isArray(rules) || (rules = [rules]);
-        rules.map(rl => {
-            if (this.thens[rl]) {
-                this.thens[rl].push(callback);
-            }
-            else {
-                this.thens[rl] = lodash_1.castArray(callback);
-            }
-        });
-        return this;
     }
     howThen(uri) {
         let theners = this.getRules(uri, this.thens, recipes => lodash_1.flattenDeep(recipes));
@@ -153,22 +194,27 @@ class Scrape {
         let howPick = this.howPick(uri);
         let thener = this.howThen(uri);
         return (res) => __awaiter(this, void 0, void 0, function* () {
-            let [doc, opts, follows] = picker_1.picker(res, howPick);
-            if (follows.length > 0) {
-                if (opts.context) {
-                    yield this.queue(follows, lodash_1.assign(ctxIh, doc));
+            try {
+                let [doc, opts, follows] = picker_1.picker(res, howPick);
+                if (follows.length > 0) {
+                    if (opts.context) {
+                        yield this.queue(follows, lodash_1.assign(ctxIh, doc));
+                    }
+                    else {
+                        yield this.queue(follows);
+                    }
                 }
-                else {
-                    yield this.queue(follows);
+                if (opts.fields) {
+                    doc = lodash_1.pick(doc, opts.fields);
                 }
+                if (opts.except) {
+                    doc = lodash_1.omit(doc, opts.except);
+                }
+                thener && (yield thener(lodash_1.assign(ctx, doc), res, uri));
             }
-            if (opts.fields) {
-                doc = lodash_1.pick(doc, opts.fields);
+            catch (error) {
+                console.log(error);
             }
-            if (opts.except) {
-                doc = lodash_1.omit(doc, opts.except);
-            }
-            thener && thener(lodash_1.assign(ctx, doc), res, uri);
         });
     }
     use(fn) {

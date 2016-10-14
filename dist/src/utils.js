@@ -33,6 +33,12 @@ exports.iterateLinks = (baseUri, iterators) => {
     };
     return lodash_1.uniq(lodash_1.flattenDeep(_makeLinks(baseUri, _iterators)));
 };
+exports.validUri = (uri) => {
+    if (!lodash_1.startWith(uri, 'http')) {
+        return false;
+    }
+    return true;
+};
 exports.debug = (obj) => {
     console.log(util.inspect(obj, true, null));
 };

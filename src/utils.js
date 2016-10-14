@@ -6,7 +6,8 @@ import { isNumber,
          clone,
          uniq,
          flattenDeep,
-         toString
+         toString,
+         startWith
        } from "lodash"
 import * as util from 'util'
 
@@ -39,6 +40,13 @@ export const iterateLinks = (baseUri, iterators) => {
     }
   }
   return uniq(flattenDeep(_makeLinks(baseUri, _iterators)))
+}
+
+export const validUri = (uri) => {
+  if(!startWith(uri, 'http')){
+    return false
+  }
+  return true
 }
 
 export const debug = (obj) => {

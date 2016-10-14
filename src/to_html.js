@@ -1,4 +1,4 @@
-import { toString } from "lodash"
+import { toString, lowerCase } from "lodash"
 /**
  * Escape the given string of `html`.
  *
@@ -25,7 +25,7 @@ function escape (html) {
  */
 
 function span(key, str) {
-  return '<span class="' + key + '">' + str + '</span>';
+  return '<span class="' + lowerCase(key).replace(/\s+/g, '-') + '">' + str + '</span>';
 }
 
 /**
@@ -54,7 +54,7 @@ export function toAttrs(obj) {
  * @api public
  */
 
-export function toHtml(obj, indents) {
+function _toHtml(obj, indents) {
   indents = indents || 1
 
   function indent() {
@@ -81,13 +81,13 @@ export function toHtml(obj, indents) {
     return 'null'
   }
 
-  var buf;
+  var buf = '';
 
   if (Array.isArray(obj)) {
     ++indents;
 
-    buf = '<ul>\n' + obj.map(function(val){
-      return indent() + "<li" + toAttrs(val) + ">" +toHtml(val, indents) + "</li>"
+    buf += '<ul>\n' + obj.map(function(val){
+      return indent() + "<li" + toAttrs(val) + ">" +_toHtml(val, indents) + "</li>"
     }).join('\n');
 
     --indents;
@@ -95,7 +95,6 @@ export function toHtml(obj, indents) {
     return buf;
   }
 
-  // buf = '<html><body>';
   var keys = Object.keys(obj);
   var len = keys.length;
   if (len) buf += '\n';
@@ -103,11 +102,17 @@ export function toHtml(obj, indents) {
   ++indents;
   buf += keys.map(function(key){
     var val = obj[key];
-    return indent() + span(key, toHtml(val, indents)); 
+    return indent() + span(key, _toHtml(val, indents)); 
   }).join('\n');
   --indents;
 
   if (len) buf += '\n' + indent();
-  // buf += '</body></html>'
   return buf;
+}
+
+export function toHtml(obj, indents) {
+  let buf = "<html><head></head><body>\n"
+  buf += _toHtml(obj, indents)
+  buf += "</body></html>"
+  return buf 
 }

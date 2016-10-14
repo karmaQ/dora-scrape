@@ -1,41 +1,20 @@
 "use strict";
-const request = require("superagent");
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator.throw(value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments)).next());
+    });
+};
+const request = require("request-promise");
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.default = (opts) => {
+exports.default = (opts) => __awaiter(this, void 0, void 0, function* () {
     console.info("request:", opts.uri);
     opts.uri = encodeURI(opts.uri);
-    let req = request(opts.method || "GET", opts.uri);
-    opts.headers = opts.headers || {};
-    opts.gzip && req.set('Accept-Encoding', 'gzip, deflate');
-    opts.formData && req.send(opts.formData);
-    opts.uri.query && req.query(opts.uri.query);
-    opts.accept && req.accept(opts.accept);
-    opts.cors && req.withCredentials();
-    opts.auth && req.auth(opts.auth.user, opts.auth.pwd);
-    let buffer = [];
-    req.set("user-agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36");
-    req.on('request', (chunk) => {
-        buffer.push(chunk);
-    });
-    req.on('end', (response) => {
-        if (opts.encoding) {
-            let encoding = chrset(response, buffer);
-            encoding = encoding || jschardet.detect(buffer).encoding;
-            if (enocding) {
-                console.info("Detecd charset", encoding);
-                if (['ascii', 'urf'].include(encoding)) {
-                    res.text = buffer.toString();
-                }
-                else {
-                    iconv = new Iconv(encoding, 'UTF-8//TRANSLIT//IGNORE');
-                    req.text = iconv.convert(buffer).toString();
-                }
-            }
-        }
-    });
-    for (let [hk, hv] in (opts.attachs || {})) {
-        req.attach(hk, hv);
-    }
-    return req;
-};
+    console.log();
+    return {
+        text: yield request.get(opts.uri)
+    };
+});
 //# sourceMappingURL=request.js.map

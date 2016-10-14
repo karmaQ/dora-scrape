@@ -117,7 +117,7 @@ export function html($, recipe) {
     eqAttr = toNumber(eqAttr) || eqAttr
     // let eqAttr = toNumber(split(sel, "::")[1])
     // sel = recipe.sels.split("::")[0]
-    if (isNumber(eqAttr)) {
+    if (isNumber(eqAttr) || eqAttr == '0') {
       recipe.eq = eqAttr
     } else {
       recipe.attrs = includes(eqAttr, '&') ? split(eqAttr, '&') : eqAttr
@@ -212,7 +212,7 @@ export function html($, recipe) {
   } else {
     let $elm = sel ? $(sel) : $
     // let $elm = $(sel)
-    if(isNumber(recipe.eq)) {
+    if(isNumber(recipe.eq) || recipe.eq == '0') {
       $elm = $elm.eq(recipe.eq)
     }
     return getElm($elm)

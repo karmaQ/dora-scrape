@@ -76,7 +76,7 @@ function html($, recipe) {
         let eqAttr;
         [sel, eqAttr] = lodash_1.split(sel, "::");
         eqAttr = lodash_1.toNumber(eqAttr) || eqAttr;
-        if (lodash_1.isNumber(eqAttr)) {
+        if (lodash_1.isNumber(eqAttr) || eqAttr == '0') {
             recipe.eq = eqAttr;
         }
         else {
@@ -150,7 +150,7 @@ function html($, recipe) {
     }
     else {
         let $elm = sel ? $(sel) : $;
-        if (lodash_1.isNumber(recipe.eq)) {
+        if (lodash_1.isNumber(recipe.eq) || recipe.eq == '0') {
             $elm = $elm.eq(recipe.eq);
         }
         return getElm($elm);

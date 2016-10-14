@@ -8,7 +8,7 @@ function escape(html) {
         .replace(/"/g, '&quot;');
 }
 function span(key, str) {
-    return '<span class="' + key + '">' + str + '</span>';
+    return '<span class="' + lodash_1.lowerCase(key).replace(/\s+/g, '-') + '">' + str + '</span>';
 }
 function toAttrs(obj) {
     let ret = '';
@@ -20,7 +20,7 @@ function toAttrs(obj) {
     return ret;
 }
 exports.toAttrs = toAttrs;
-function toHtml(obj, indents) {
+function _toHtml(obj, indents) {
     indents = indents || 1;
     function indent() {
         return Array(indents).join('  ');
@@ -38,11 +38,11 @@ function toHtml(obj, indents) {
     if (null === obj) {
         return 'null';
     }
-    var buf;
+    var buf = '';
     if (Array.isArray(obj)) {
         ++indents;
-        buf = '<ul>\n' + obj.map(function (val) {
-            return indent() + "<li" + toAttrs(val) + ">" + toHtml(val, indents) + "</li>";
+        buf += '<ul>\n' + obj.map(function (val) {
+            return indent() + "<li" + toAttrs(val) + ">" + _toHtml(val, indents) + "</li>";
         }).join('\n');
         --indents;
         buf += '\n' + indent() + '</ul>';
@@ -55,11 +55,17 @@ function toHtml(obj, indents) {
     ++indents;
     buf += keys.map(function (key) {
         var val = obj[key];
-        return indent() + span(key, toHtml(val, indents));
+        return indent() + span(key, _toHtml(val, indents));
     }).join('\n');
     --indents;
     if (len)
         buf += '\n' + indent();
+    return buf;
+}
+function toHtml(obj, indents) {
+    let buf = "<html><head></head><body>\n";
+    buf += _toHtml(obj, indents);
+    buf += "</body></html>";
     return buf;
 }
 exports.toHtml = toHtml;

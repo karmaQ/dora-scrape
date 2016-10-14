@@ -19,7 +19,9 @@ import { isPlainObject,
          castArray,
          assign,
          pick,
-         omit
+         omit,
+         keys,
+         startsWith
        } from "lodash"
 
 import {
@@ -89,25 +91,58 @@ class Scrape {
   // }
 
   queue(links, ctxIn) {
-    let queueLinks = links.map((x)=>{
-      let uri = x.uri ? x.uri : x
-      if(!includes(uri, 'http')){return null}
-      return {
-        uri: uri,
-        priority: x.priority || 5,
-        processor: (error, opts)=> request(opts),
-        after: this.after(x, x.info, ctxIn),
+    let linkLength = links.length
+    return Promise.resolve(new Promise((resolve, reject)=>{
+      try {      
+        let queueLinks = links.map((x)=>{
+          let uri = x.uri ? x.uri : x
+          if(!includes(uri, 'http')){
+            if(--linkLength == 0) { resolve() }
+            return null
+          }
+          return {
+            uri: uri,
+            priority: x.priority || 5,
+            processor: (error, opts)=> request(opts) ,
+            // after: this.after(x, x.info, ctxIn),
+            after: async(retval) =>{
+              try{
+                await this.after(x, x.info, ctxIn)(retval)
+              }catch (error) {
+                console.log(error)
+              }
+              
+              // await this.after(x, x.info, ctxIn)(retval)
+              if(--linkLength == 0) { 
+                console.log('>>> resolve <<<')
+                resolve() 
+              }
+            },
+          }
+        })//.filter(x=>x)
+        console.info("queued:", links.length, "urls")
+        this.typheous.queue(queueLinks)
+      } catch (error) {
+        console.log('rejected')
+        console.log(error)
+        return reject(error)
       }
-    }).filter(x=>x)
-    console.info("queued:", links.length, "urls")
-    this.typheous.queue(queueLinks)
+    }))   
   }
 
   on(rules, recipes) {
     rules = castArray(rules)
     rules.map(rl => {
       // TODO 当 recipes 为字符串时,从默认 recipes 列表中选取.
-      this.rules[rl] = recipes
+      if(isFunction(rl)) {
+        let $rl = "$func$_" + keys(this.rules).length
+        this.rules[$rl] = {
+          on: rl,
+          does: recipes
+        }
+      } else {
+        this.rules[rl] = recipes
+      }
     })
     this.lastOn = rules
     if(includes(rules, "default")) {
@@ -117,12 +152,28 @@ class Scrape {
     return this
   }
 
-  keep(callback) {
-    this.doKeep = callback || ((x)=> {})
-  }
-
-  howPipe(uri) {
-    return this.getRules(uri, this.keeps, recipes => flatten(recipes))
+  then(rules, callback) {
+    if(isFunction(rules)) {
+      callback = rules
+      rules = this.lastOn || ["default"]
+    }
+    rules = castArray(rules)
+    rules.map(rl => {
+      if(isFunction(rl)) {
+        let $rl = "$func$_" + keys(this.rules).length
+        if(this.thens[$rl]) {
+          this.thens[$rl].does.push(callback)
+        } else {
+          this.thens[$rl] = {
+            on: rl, does: [callback]
+          }
+        }
+      } else {
+        if(!this.thens[rl]) {this.thens[rl] = []}
+        this.thens[rl].push(callback) 
+      }
+    })
+    return this
   }
 
   howPick(uri) {
@@ -137,14 +188,19 @@ class Scrape {
     let recipes = []
     // TODO 缓存 rules
     for(let r in does) {
-      let isMatch, uri = link.uri ? link.uri : link
-      if (isString(r)) {
-        isMatch = includes(uri, r)
-      } else if (isRegExp(r)){
+      let isMatch, _do, uri = link.uri ? link.uri : link
+      if (startsWith(r, "$func$_")) {
+        isMatch = does[r].on(uri, link)
+        _do = does[r].does
+      } else if (startsWith(r, "$reg$_")){
         isMatch = r.test(uri)
+        _do = does[r]
+      } else  {
+        isMatch = includes(uri, r)
+        _do = does[r]
       }
       if(isMatch) {
-        recipes.push(does[r])
+        recipes.push(_do)
       }
     }
     if (does.default) {
@@ -153,29 +209,10 @@ class Scrape {
     return how(recipes)
   }
 
-  pipe() {
-    ;
-  }
-
   processor() {
     ;
   }
 
-  then(rules, callback) {
-    if(isFunction(rules)) {
-      callback = rules
-      rules = this.lastOn || ["default"]
-    }
-    Array.isArray(rules) || (rules = [rules])
-    rules.map(rl => {
-      if(this.thens[rl]) {
-        this.thens[rl].push(callback) 
-      } else {
-        this.thens[rl] = castArray(callback)
-      }
-    })
-    return this
-  }
 
   howThen(uri) {
     let theners = this.getRules(uri,
@@ -204,22 +241,26 @@ class Scrape {
     let howPick = this.howPick(uri)
     let thener = this.howThen(uri)
     return async (res) => {
-      let [doc, opts, follows] = picker(res, howPick)
-      // doc = assign(ctxIh, ctx, doc)
-      if(follows.length > 0) {
-        if (opts.context) {
-          await this.queue(follows, assign(ctxIh, doc))
-        } else {
-          await this.queue(follows)
+      try{
+        let [doc, opts, follows] = picker(res, howPick)
+        // doc = assign(ctxIh, ctx, doc)
+        if(follows.length > 0) {
+          if (opts.context) {
+            await this.queue(follows, assign(ctxIh, doc))
+          } else {
+            await this.queue(follows)
+          }
         }
+        if(opts.fields) {
+          doc = pick(doc, opts.fields)
+        }
+        if(opts.except) {
+          doc = omit(doc, opts.except);
+        }
+        thener && await thener(assign(ctx, doc), res, uri)
+      } catch(error) {
+        console.log(error)
       }
-      if(opts.fields) {
-        doc = pick(doc, opts.fields)
-      }
-      if(opts.except) {
-        doc = omit(doc, opts.except);
-      }      
-      thener && thener(assign(ctx, doc), res, uri)
     }
   }
   

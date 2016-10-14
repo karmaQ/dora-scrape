@@ -20,6 +20,8 @@
     "iconv": "^2.2.1",
     "jschardet": "^1.4.1",
     "jxon": "^2.0.0-beta.3",
+    "request": "^2.75.0",
+    "request-promise": "^4.1.1",
     "superagent": "^2.2.0",
     "xmldom": "^0.1.22",
     "xpath": "0.0.23"
