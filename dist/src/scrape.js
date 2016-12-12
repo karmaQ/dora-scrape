@@ -8,7 +8,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 const picker_1 = require("./picker");
-const typheous_1 = require("typheous");
+const typhoeus_1 = require("typhoeus");
 const request_1 = require("./request");
 const lodash_1 = require("lodash");
 const utils_1 = require("./utils");
@@ -27,7 +27,7 @@ class Scrape {
         else {
             this.links = [];
         }
-        this.typheous = new typheous_1.default({
+        this.typheous = new typhoeus_1.default({
             concurrency: opts.concurrency || 10,
             gap: opts.gap || null,
             onDrain: () => {

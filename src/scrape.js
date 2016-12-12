@@ -1,5 +1,5 @@
 import { picker } from "./picker"
-import Typheous from "typheous"
+import Typheous from "typhoeus"
 // import request from "./superagent"
 import request from "./request"
 
