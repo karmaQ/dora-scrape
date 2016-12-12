@@ -102,6 +102,11 @@ function line($, recipe) {
   } else {
     ret = html($, recipe)
   }
+  if(isString(recipe.pipes)) {
+    recipe.pipes = recipe.pipes.replace(/\s+/g,'')
+    let rpipes = recipe.pipes.split('|')
+    ret = rpipes.reduce((a,b)=>{ return pipes[b](a) }, ret)
+  }
   return isBlank(ret) ? recipe.default : ret
 }
 
@@ -190,11 +195,11 @@ export function html($, recipe) {
     }
     // TODO 添加 pipe, 可以自定义 pipes 以及从默认 pipes 中选择
     
-    if(isString(recipe.pipes)) {
-      recipe.pipes = recipe.pipes.replace(/\s+/g,'')
-      let rpipes = recipe.pipes.split('|')
-      ret = rpipes.reduce((a,b)=>{ return pipes[b](a) }, ret)
-    }
+    // if(ret && isString(recipe.pipes)) {
+    //   recipe.pipes = recipe.pipes.replace(/\s+/g,'')
+    //   let rpipes = recipe.pipes.split('|')
+    //   ret = rpipes.reduce((a,b)=>{ return pipes[b](a) }, ret)
+    // }
 
     ret = isFunction(recipe.convert) ? recipe.convert(ret) : ret
     return ret

@@ -64,6 +64,11 @@ function line($, recipe) {
     else {
         ret = html($, recipe);
     }
+    if (lodash_1.isString(recipe.pipes)) {
+        recipe.pipes = recipe.pipes.replace(/\s+/g, '');
+        let rpipes = recipe.pipes.split('|');
+        ret = rpipes.reduce((a, b) => { return pipes[b](a); }, ret);
+    }
     return utils_1.isBlank(ret) ? recipe.default : ret;
 }
 function html($, recipe) {
@@ -128,11 +133,6 @@ function html($, recipe) {
             if ($elm[recipe.how]) {
                 ret = $elm[recipe.how]();
             }
-        }
-        if (lodash_1.isString(recipe.pipes)) {
-            recipe.pipes = recipe.pipes.replace(/\s+/g, '');
-            let rpipes = recipe.pipes.split('|');
-            ret = rpipes.reduce((a, b) => { return pipes[b](a); }, ret);
         }
         ret = lodash_1.isFunction(recipe.convert) ? recipe.convert(ret) : ret;
         return ret;

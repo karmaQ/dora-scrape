@@ -2,7 +2,7 @@
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     return new (P || (P = Promise))(function (resolve, reject) {
         function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator.throw(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
         function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
         step((generator = generator.apply(thisArg, _arguments)).next());
     });
@@ -13,18 +13,11 @@ const request_1 = require("./request");
 const lodash_1 = require("lodash");
 const utils_1 = require("./utils");
 class Scrape {
-    constructor(seedUri, iterators, defaultRecipe, opts) {
+    constructor(seedUri, iterators, defaultRecipe, opts = {}) {
         this.crawledLinks = [];
         this.keepedLinks = [];
         this.rules = {};
         this.thens = {};
-        if (defaultRecipe) {
-            this.defaulRecipe = defaultRecipe;
-        }
-        else if (lodash_1.isPlainObject(iterators)) {
-            this.defaulRecipe = iterators;
-            iterators = undefined;
-        }
         if (iterators) {
             this.links = utils_1.iterateLinks(seedUri, iterators);
         }
@@ -35,6 +28,8 @@ class Scrape {
             this.links = [];
         }
         this.typheous = new typheous_1.default({
+            concurrency: opts.concurrency || 10,
+            gap: opts.gap || null,
             onDrain: () => {
                 console.log("resolved & drained");
             }
@@ -49,6 +44,7 @@ class Scrape {
     }
     queue(links, ctxIn) {
         let linkLength = links.length;
+        let rets = [];
         return Promise.resolve(new Promise((resolve, reject) => {
             try {
                 let queueLinks = links.map((x) => {
@@ -62,21 +58,29 @@ class Scrape {
                     return {
                         uri: uri,
                         priority: x.priority || 5,
+                        gap: x.gap || null,
                         processor: (error, opts) => request_1.default(opts),
-                        after: (retval) => __awaiter(this, void 0, void 0, function* () {
+                        release: (retval) => __awaiter(this, void 0, void 0, function* () {
+                            let ret;
                             try {
-                                yield this.after(x, x.info, ctxIn)(retval);
+                                ret = yield this.after(x, x.info, ctxIn)(retval);
                             }
                             catch (error) {
                                 console.log(error);
                             }
+                            rets.push(ret);
                             if (--linkLength == 0) {
-                                console.log('>>> resolve <<<');
-                                resolve();
+                                resolve(rets);
                             }
                         }),
+                        onError: (err) => {
+                            console.log(err);
+                        }
                     };
                 });
+                if (queueLinks.length == 0) {
+                    resolve([]);
+                }
                 console.info("queued:", links.length, "urls");
                 this.typheous.queue(queueLinks);
             }
@@ -173,14 +177,14 @@ class Scrape {
         let theners = this.getRules(uri, this.thens, recipes => lodash_1.flattenDeep(recipes));
         return (doc, res, uri) => __awaiter(this, void 0, void 0, function* () {
             try {
-                yield theners.reduce((ret, thener) => __awaiter(this, void 0, void 0, function* () {
+                return yield theners.reduce((ret, thener) => __awaiter(this, void 0, void 0, function* () {
                     if (ret && ret.doc) {
-                        yield thener(ret.doc, ret.res, ret.uri);
+                        return yield thener(ret.doc, ret.res, ret.uri);
                     }
                     else {
-                        yield thener(ret, doc, res, uri);
+                        return yield thener(ret, doc, res, uri);
                     }
-                }), { doc: doc, res: res, uri: uri });
+                }), { doc, res, uri });
             }
             catch (error) {
                 console.log(error);
@@ -210,7 +214,9 @@ class Scrape {
                 if (opts.except) {
                     doc = lodash_1.omit(doc, opts.except);
                 }
-                thener && (yield thener(lodash_1.assign(ctx, doc), res, uri));
+                if (thener) {
+                    return yield thener(lodash_1.assign(ctx, doc), res, uri);
+                }
             }
             catch (error) {
                 console.log(error);

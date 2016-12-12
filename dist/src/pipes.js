@@ -4,6 +4,8 @@ exports.numbers = (ret) => {
     return lodash_1.toNumber((ret || '').replace(/[^\d]/g, ''));
 };
 exports.trim = (text) => {
-    return (text || "").replace(/[\s]+/g, "");
+    text = (text || "");
+    text = text.replace('&nbsp;', '');
+    return text.replace(/[\s]+/g, "");
 };
 //# sourceMappingURL=pipes.js.map

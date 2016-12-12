@@ -5,8 +5,14 @@ export default async (opts)=>{
   // return new Promise((resolve,reject)=>{
   //   return request.get(opts.uri).then(resolve).catch(reject)
   // })
-  console.log()
   return {
-    text: await request.get(opts.uri)
+    text: await request({
+      method: 'GET',
+      uri: opts.uri,
+      timeout: 6000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36'
+      }
+    })
   }
 }

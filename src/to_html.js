@@ -114,5 +114,6 @@ export function toHtml(obj, indents) {
   let buf = "<html><head></head><body>\n"
   buf += _toHtml(obj, indents)
   buf += "</body></html>"
+  // console.log(buf)
   return buf 
 }

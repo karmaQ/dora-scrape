@@ -1,5 +1,6 @@
 import { picker } from "./picker"
 import Typheous from "typheous"
+// import request from "./superagent"
 import request from "./request"
 
 import { isPlainObject,
@@ -29,18 +30,18 @@ import {
 } from "./utils"
 
 class Scrape {
-  constructor(seedUri, iterators, defaultRecipe, opts) {
+  constructor(seedUri, iterators, defaultRecipe, opts = {}) {
     this.crawledLinks = []
     this.keepedLinks = []
     this.rules = {}
     this.thens = {}
     // 设置默认值
-    if(defaultRecipe) {
-      this.defaulRecipe = defaultRecipe
-    } else if (isPlainObject(iterators)) {
-      this.defaulRecipe = iterators
-      iterators = undefined
-    }
+    // if(defaultRecipe) {
+    //   this.defaulRecipe = defaultRecipe
+    // } else if (isPlainObject(iterators)) {
+    //   this.defaulRecipe = iterators
+    //   iterators = undefined
+    // }
 
     if(iterators) {
       this.links = iterateLinks(seedUri, iterators)
@@ -49,8 +50,10 @@ class Scrape {
     } else {
       this.links = []
     }
-    // console.log(this.links)
+    // console.log(opts)
     this.typheous = new Typheous({
+      concurrency: opts.concurrency || 10,
+      gap: opts.gap || null,
       onDrain: ()=> {
         console.log("resolved & drained")
       }
@@ -92,6 +95,7 @@ class Scrape {
 
   queue(links, ctxIn) {
     let linkLength = links.length
+    let rets = []
     return Promise.resolve(new Promise((resolve, reject)=>{
       try {      
         let queueLinks = links.map((x)=>{
@@ -103,23 +107,30 @@ class Scrape {
           return {
             uri: uri,
             priority: x.priority || 5,
+            gap: x.gap || null
             processor: (error, opts)=> request(opts) ,
             // after: this.after(x, x.info, ctxIn),
-            after: async(retval) =>{
+            release: async(retval) =>{
+              let ret
               try{
-                await this.after(x, x.info, ctxIn)(retval)
+                ret = await this.after(x, x.info, ctxIn)(retval)
               }catch (error) {
                 console.log(error)
               }
-              
+              rets.push(ret)
               // await this.after(x, x.info, ctxIn)(retval)
               if(--linkLength == 0) { 
-                console.log('>>> resolve <<<')
-                resolve() 
+                resolve(rets) 
               }
             },
+            onError: (err)=>{
+              console.log(err)
+            }
           }
         })//.filter(x=>x)
+        if(queueLinks.length == 0) {
+          resolve([])
+        }
         console.info("queued:", links.length, "urls")
         this.typheous.queue(queueLinks)
       } catch (error) {
@@ -140,6 +151,11 @@ class Scrape {
           on: rl,
           does: recipes
         }
+      // else if(isRegExp(rl)) {
+      //   let $rl = "$reg$_" + keys(this.rules).length
+      //   this.rules[$rl] = {
+      //     on: rl,
+      //     does: recipes
       } else {
         this.rules[rl] = recipes
       }
@@ -220,11 +236,11 @@ class Scrape {
                                 recipes => flattenDeep(recipes) )
     return async (doc, res, uri)=> {
       try {
-        await theners.reduce( async (ret, thener) => {
+        return await theners.reduce( async (ret, thener) => {
           if(ret && ret.doc) {
-            await thener(ret.doc, ret.res, ret.uri)
+            return await thener(ret.doc, ret.res, ret.uri)
           } else {
-            await thener(ret, doc, res, uri)
+            return await thener(ret, doc, res, uri)
           }
         }, {doc, res, uri})
       } catch (error) {
@@ -257,7 +273,7 @@ class Scrape {
         if(opts.except) {
           doc = omit(doc, opts.except);
         }
-        thener && await thener(assign(ctx, doc), res, uri)
+        if(thener) { return await thener(assign(ctx, doc), res, uri) }
       } catch(error) {
         console.log(error)
       }
