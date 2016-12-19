@@ -1,6 +1,6 @@
 "use strict";
 const lodash_1 = require("lodash");
-const util = require("util");
+const util = require('util');
 exports.isBlank = (el) => {
     if (lodash_1.isString(el)) {
         return el.length == 0;

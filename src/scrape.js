@@ -107,7 +107,7 @@ class Scrape {
           return {
             uri: uri,
             priority: x.priority || 5,
-            gap: x.gap || null
+            gap: x.gap || null,
             processor: (error, opts)=> request(opts) ,
             // after: this.after(x, x.info, ctxIn),
             release: async(retval) =>{
