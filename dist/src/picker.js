@@ -213,7 +213,7 @@ function picker(res, recipe) {
         case 'html':
             return byHtml(text, recipe, opts);
         case 'string':
-            return text;
+            return [text, opts, []];
         default:
             if (text.match(/^\s*</)) {
                 return byHtml(text, recipe, opts);

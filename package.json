@@ -1,6 +1,10 @@
 {
   "name": "dora-scrape",
+<<<<<<< HEAD
   "version": "1.0.6",
+=======
+  "version": "1.0.7",
+>>>>>>> ca662ff407f0deb689e0d23272da299fd43b1cc3
   "description": "scrape it!",
   "main": "dist/index.js",
   "scripts": {
