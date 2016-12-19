@@ -283,8 +283,8 @@ export function picker(res, recipe)  {
       return byJson(text, recipe, opts, res)
     case 'html':
       return byHtml(text, recipe, opts)
-    case 'string':
-      return [text, opts, []]
+    case 'raw':
+      return [{body: text}, opts, []]
     default:
       if (text.match(/^\s*</)) {
         return byHtml(text, recipe, opts)
