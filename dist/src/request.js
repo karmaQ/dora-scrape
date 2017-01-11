@@ -35,7 +35,7 @@ exports.default = (opts) => __awaiter(this, void 0, void 0, function* () {
                 encoding = encoding || jschardet.detect(buffer).encoding;
                 if (encoding) {
                     console.info("Detecd charset", encoding);
-                    if (lodash_1.includes(['ascii', 'urf'], encoding)) {
+                    if (lodash_1.includes(['ascii', 'utf', 'utf8'], encoding)) {
                         res.text = buffer.toString();
                     }
                     else {

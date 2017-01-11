@@ -28,7 +28,7 @@ export default async (opts)=>{
           // var result = iconv.decode(bufferHelper.toBuffer(),'GBK');
           if(encoding) {
             console.info("Detecd charset", encoding)
-            if(includes(['ascii', 'urf'], encoding)) {
+            if(includes(['ascii', 'utf', 'utf8'], encoding)) {
               res.text = buffer.toString()
             } else {
               let iconv = new Iconv(encoding, 'UTF-8//TRANSLIT//IGNORE')
