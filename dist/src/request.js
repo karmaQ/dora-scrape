@@ -8,10 +8,24 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 const request = require("request");
-const iconv_1 = require("iconv");
 const charset = require("charset");
 const jschardet = require("jschardet");
 const lodash_1 = require("lodash");
+const os_1 = require("os");
+const decode;
+if (os_1.default.platform() == "win32") {
+    import { iconv } from "iconv-lite";
+    decode = (buffer, encoding) => {
+        return iconv_lite_1.iconv.decode(buffer, encoding);
+    };
+}
+else {
+    import { Iconv } from "iconv";
+    decode = (buffer, encoding) => {
+        let iconv = new iconv_1.Iconv(encoding, 'UTF-8//TRANSLIT//IGNORE');
+        return iconv.convert(buffer).toString();
+    };
+}
 const defaultOpts = {
     method: 'GET',
     timeout: 6000,
@@ -39,8 +53,7 @@ exports.default = (opts) => __awaiter(this, void 0, void 0, function* () {
                         res.text = buffer.toString();
                     }
                     else {
-                        let iconv = new iconv_1.Iconv(encoding, 'UTF-8//TRANSLIT//IGNORE');
-                        res.text = iconv.convert(buffer).toString();
+                        res.text = decode(buffer, encoding);
                     }
                 }
                 resolve(res.text);
