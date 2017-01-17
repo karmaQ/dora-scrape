@@ -10,19 +10,19 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 const request = require("request");
 const charset = require("charset");
 const jschardet = require("jschardet");
+const os = require("os");
 const lodash_1 = require("lodash");
-const os_1 = require("os");
-const decode;
-if (os_1.default.platform() == "win32") {
-    import { iconv } from "iconv-lite";
+let decode;
+if (os.platform() == "win32") {
+    let iconv = require("iconv-lite");
     decode = (buffer, encoding) => {
-        return iconv_lite_1.iconv.decode(buffer, encoding);
+        return iconv.decode(buffer, encoding);
     };
 }
 else {
-    import { Iconv } from "iconv";
+    let Iconv = require("iconv").Iconv;
     decode = (buffer, encoding) => {
-        let iconv = new iconv_1.Iconv(encoding, 'UTF-8//TRANSLIT//IGNORE');
+        let iconv = new Iconv(encoding, 'UTF-8//TRANSLIT//IGNORE');
         return iconv.convert(buffer).toString();
     };
 }
