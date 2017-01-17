@@ -42,7 +42,7 @@ class Scrape {
     scrape() {
         return this.queue(this.links);
     }
-    queue(links, ctxIn) {
+    queue(links, ropts, ctxIn) {
         let linkLength = links.length;
         let rets = [];
         return Promise.resolve(new Promise((resolve, reject) => {
@@ -59,7 +59,7 @@ class Scrape {
                         uri: uri,
                         priority: x.priority || 5,
                         gap: x.gap || null,
-                        processor: (error, opts) => request_1.default(opts),
+                        processor: (error, opts) => request_1.default(lodash_1.assign(opts, ropts)),
                         release: (retval) => __awaiter(this, void 0, void 0, function* () {
                             let ret;
                             try {
@@ -202,7 +202,7 @@ class Scrape {
                 let [doc, opts, follows] = picker_1.picker(res, howPick);
                 if (follows.length > 0) {
                     if (opts.context) {
-                        yield this.queue(follows, lodash_1.assign(ctxIh, doc));
+                        yield this.queue(follows, {}, lodash_1.assign(ctxIh, doc));
                     }
                     else {
                         yield this.queue(follows);

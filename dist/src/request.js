@@ -12,20 +12,20 @@ const iconv_1 = require("iconv");
 const charset = require("charset");
 const jschardet = require("jschardet");
 const lodash_1 = require("lodash");
+const defaultOpts = {
+    method: 'GET',
+    timeout: 6000,
+    encoding: null,
+    headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36'
+    }
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.default = (opts) => __awaiter(this, void 0, void 0, function* () {
     console.info("request:", opts.uri);
     opts.uri = encodeURI(opts.uri);
     let text = yield new Promise(function (resolve, reject) {
-        request({
-            method: 'GET',
-            uri: opts.uri,
-            timeout: 6000,
-            encoding: null,
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36'
-            }
-        }, function (err, res, body) {
+        request(lodash_1.defaultsDeep(opts, defaultOpts), function (err, res, body) {
             if (err) {
                 reject(err);
             }

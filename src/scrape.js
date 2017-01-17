@@ -93,7 +93,7 @@ class Scrape {
   //   })
   // }
 
-  queue(links, ctxIn) {
+  queue(links, ropts, ctxIn) {
     let linkLength = links.length
     let rets = []
     return Promise.resolve(new Promise((resolve, reject)=>{
@@ -108,7 +108,7 @@ class Scrape {
             uri: uri,
             priority: x.priority || 5,
             gap: x.gap || null,
-            processor: (error, opts)=> request(opts) ,
+            processor: (error, opts)=> request(assign(opts, ropts)) ,
             // after: this.after(x, x.info, ctxIn),
             release: async(retval) =>{
               let ret
@@ -262,7 +262,7 @@ class Scrape {
         // doc = assign(ctxIh, ctx, doc)
         if(follows.length > 0) {
           if (opts.context) {
-            await this.queue(follows, assign(ctxIh, doc))
+            await this.queue(follows, {}, assign(ctxIh, doc))
           } else {
             await this.queue(follows)
           }
