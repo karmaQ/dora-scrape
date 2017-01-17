@@ -19,6 +19,7 @@
     "charset": "^1.0.0",
     "cheerio": "^0.20.0",
     "iconv": "^2.2.1",
+    "iconv-lite": "^0.4.15",
     "jschardet": "^1.4.1",
     "jxon": "^2.0.0-beta.3",
     "lodash": "^4.16.4",
