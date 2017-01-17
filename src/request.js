@@ -56,32 +56,6 @@ export default async (opts)=>{
         }
       })
   })
-  // .on('response', function(res, err) {
-    
-  //   let buffer = []//new BufferHelper();
-  //   res.on('data', function (chunk) {
-  //     buffer.push(chunk);
-  //   });
-  //   res.on('end',function(){
-  //     let result
-  //     let encoding = charset(res, buffer)
-  //     encoding = encoding || jschardet.detect(buffer).encoding
-  //     // var result = iconv.decode(bufferHelper.toBuffer(),'GBK');
-  //     if(encoding) {
-  //       console.info("Detecd charset", encoding)
-  //       if(includes(['ascii', 'urf'],encoding)) {
-  //         res.text = buffer.toString()
-  //       } else {
-  //         let iconv = new Iconv(encoding, 'UTF-8//TRANSLIT//IGNORE')
-  //         result = iconv.convert(buffer).toString()
-  //       }
-  //     }
-  //     console.log('decoded chunk: ' + result)
-      
-  //     return result
-  //   })
-    // decompressed data as it is received
-  // })
 
   return {
     text: text
